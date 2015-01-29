@@ -225,7 +225,13 @@ class ImageProxy{
 		//指定フォーマットがIMGの場合は$this->formatにオリジナルのフォーマットを指定する
 		if($this->format === "IMG"){
 			$original_format = strtoupper( image_type_to_extension($image_size[2], false) );
-			$this->format = $original_format;
+
+			if(in_array($original_format, $this->supported_formats, true)){
+				$this->format = $original_format;
+			}else{
+				//もしオリジナルフォーマットがサポートされていない場合は"JPEG"を指定する
+				$this->format = "JPEG";
+			}
 		}
 
 
@@ -245,6 +251,8 @@ class ImageProxy{
 			$newImage["data"] = imagejpeg($scaled_image, null, $this->quality);
 		}else if($this->format === "GIF"){
 			$newImage["data"] = imagegif($scaled_image, null);
+		}else if($this->format === "WEBP"){
+			$newImage["data"] = imagewebp($scaled_image, null);
 		}
 
 		if($newImage["data"] === false){
