@@ -223,8 +223,10 @@ class ImageProxy{
 		$image_size = getimagesizefromstring($original_image);
 		
 		//指定フォーマットがIMGの場合は$this->formatにオリジナルのフォーマットを指定する
-		$original_format = strtoupper( image_type_to_extension($image_size[2], false) );
-		$this->format = $original_format;
+		if($this->format === "IMG"){
+			$original_format = strtoupper( image_type_to_extension($image_size[2], false) );
+			$this->format = $original_format;
+		}
 
 
 		if($image_size[0] > $this->width){
