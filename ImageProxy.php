@@ -174,21 +174,6 @@ class ImageProxy{
 
 	}
 
-	protected function getImageMime($format){
-		//フォーマットの適切なmime typeを返す
-
-		if($format === "JPEG" || $format === "JPG"){
-			return "image/jpeg";
-		}elseif($format === "PNG"){
-			return "image/png";
-		}elseif($format === "GIF"){
-			return "image/gif";
-		}elseif($format === "WEBP"){
-			return "image/webp";
-		}else{
-			throw new Exception("サポートしていないフォーマットなのでmimeがわかりません");
-		}
-	}
 
 	protected function getOriginalImage(){
 		$ch = curl_init();
@@ -225,6 +210,33 @@ class ImageProxy{
 	}
 
 
+	protected function echoHeaders($imagetype){
+
+		$headers = array();
+
+		//常につけてたほうが良い
+		$headers[] = "X-Content-Type-Options: nosniff";
+		$headers[] = "X-XSS-Protection: 1; mode=block";
+		$headers[] = "Content-Security-Policy: 'none'";
+		$headers[] = "Access-Control-Allow-Origin: *";
+		$headers[] = "Cache-Control: public, max-age=10";
+
+		//send content-type
+		$content_type = image_type_to_mime_type($imagetype);
+		if($content_type){
+			$headers[] = "Content-Type: ".$content_type;
+		}
+
+		//canonical
+		$headers[] = 'Link: <'.$this->resource_url.'>; rel="canonical"';
+
+		if(count($headers)){
+			foreach($headers as $header){
+				header($header);
+			}
+		}
+			
+	}
 
 
 	public function getImage(){
@@ -305,8 +317,10 @@ class ImageProxy{
 
 		$newImage["mime"] = $image_size["mime"];
 
-		header('content-type: '.$this->getImageMime($this->format));
-		header('Link: <'.$this->resource_url.'>; rel="canonical"');
+		//output header
+		$this->echoHeaders($image_size[2]);
+
+
 		echo $newImage["data"];
 
 
