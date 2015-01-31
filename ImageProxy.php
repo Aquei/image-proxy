@@ -9,6 +9,7 @@ class ImageProxy{
 	protected $resource_url;
 	protected $timeout = 60;
 	protected $maxredirs = 5;
+	protected $preset_quality;
 
 	private $supported_formats = array("IMG");
 
@@ -47,6 +48,22 @@ class ImageProxy{
 			$this->supported_formats[] = "WEBP";
 		}
 
+		$this->preset_quality = array(
+			"low" => array(
+				"JPEG" => 30,
+				"PNG" => 9,
+			),
+
+			"mid" => array(
+				"JPEG" => 75,
+				"PNG" => 6
+			),
+
+			"high" => array(
+				"JPEG" => 90,
+				"PNG" => 5
+			)
+		);	
 
 	}
 
@@ -76,10 +93,15 @@ class ImageProxy{
 
 		//$this->format
 		if($key === "format"){
-			if(in_array($val, $this->supported_formats, TRUE)){
-				$this->format = $val;
+			$normalized_format = $val;
+			if($normalized_format === "JPG"){
+				$normalized_format = "JPEG";
+			}
+
+			if(in_array($normalized_format, $this->supported_formats, TRUE)){
+				$this->format = $normalized_format;
 			}else{
-				throw new Exception('サポートされていない画像フォーマット');
+				throw new Exception('サポートされていない画像フォーマット('.$val.')');
 			}
 
 			return;
@@ -129,10 +151,21 @@ class ImageProxy{
 
 
 		if($key === "quality"){
+
+			if(in_array($val, array("low", "mid", "high"), TRUE)){
+				$this->quality = $val;
+				return;
+			}else{
+				if(ctype_digit($val)){
+					$val = (int) $val;
+				}
+			}
+				
+
 			if(is_int($val) && $val > 0){
 				$this->quality = $val;
 			}else{
-				throw new Exception('qualityは0より大きいintでなければならない');
+				throw new Exception('qualityは0より大きいintかpresetでなければならない');
 			}
 
 			return;
@@ -232,6 +265,17 @@ class ImageProxy{
 				//もしオリジナルフォーマットがサポートされていない場合は"JPEG"を指定する
 				$this->format = "JPEG";
 			}
+		}
+
+		//qualityがpresetだったら設定
+		if(array_key_exists($this->quality, $this->preset_quality)){
+			if(array_key_exists($this->format, $this->preset_quality[$this->quality])){
+				$this->quality = $this->preset_quality[$this->quality][$this->format];
+			}else{
+				//presetに定義されてない？
+				$this->quality = 1;
+			}
+		}else{
 		}
 
 
