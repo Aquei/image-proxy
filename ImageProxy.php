@@ -292,7 +292,8 @@ class ImageProxy{
 
 
 		if($image_size[0] > $this->width){
-			$scaled_image = imagescale($temp_image, $this->width);
+			$scaled_image_height = floor($image_size[1] * ($this->width / $image_size[0]));
+			$scaled_image = imagescale($temp_image, $this->width, $scaled_image_height);
 
 			if($scaled_image === false){
 				throw new Exception('画像のスケールに失敗しました');
