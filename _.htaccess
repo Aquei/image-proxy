@@ -1,8 +1,0 @@
-<IfModule mod_rewrite.c>
-AllowEncodedSlashes On
-Header set x-rewrite "on1"
-RewriteEngine On
-RewriteRule ([^/]+)/([^/]+)/([^/]+)/(^/]+) ./image-proxy.php?$1&$2&$3&$4 [R,NE,QSA,L]
-</IfModule>
-
-Header set x-test "abc"

@@ -55,7 +55,7 @@ class ImageProxy{
 			),
 
 			"mid" => array(
-				"JPEG" => 75,
+				"JPEG" => 65,
 				"PNG" => 6
 			),
 
@@ -174,8 +174,79 @@ class ImageProxy{
 
 	}
 
+	//$quotaはキャッシュdirの最大ファイル数
+	protected function cacheNewFile(&$data, $filename, $dir_name, $quota){
+		$dir_path = __DIR__.'/'.$dir_name;
+		if(file_exists($dir_path) && is_dir($dir_path)){
+		}else{
+			mkdir($dir_path);
+		}
+		$cache_dir = dir($dir_path);
+		$oldest_file;
+		$count = 0;
+
+		while(false !== ($entry = $cache_dir->read()) && is_file($cache_dir->path.'/'.$entry)){
+			++$count;
+			$entry_path = $cache_dir->path.'/'.$entry;
+			$entry_ctime = filectime($entry_path);
+			if($oldest_file){
+				if($oldest_file["ctime"] > $entry_ctime){
+					$oldest_file["ctime"] = $entry_ctime;
+					$oldest_file["name"] = $entry;
+					$oldest_file["path"] = $entry_path;
+				}
+			}else{
+				$oldest_file = array("ctime" => $entry_ctime, "name" => $entry, "path" => $entry_path);
+			}
+		}
+
+		if($count > $quota && $oldest_file){
+			unlink($oldest_file["path"]);
+		}
+
+		//新しくファイルをキャッシュする
+		$cache_file_path = $cache_dir->path."/".$filename;
+		if(!file_exists($cache_file_path)){
+			if(file_put_contents($cache_file_path, $data) === false){
+				throw new Exception("file write error");
+			}
+		}
+
+		return true;
+	}
+
+	protected function echoResizedImageIfExist(){
+
+		$filename = $this->getMd5Name($this->format, $this->quality, $this->width, $this->resource_url);
+		$resized_path = __dir__."/resized_cache/".$filename;
+		if(file_exists($resized_path)){
+			$resized = file_get_contents($resized_path);
+			$image_size = getimagesizefromstring($resized);
+			$this->echoHeaders($image_size[2], true);
+			echo $resized;
+
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+
+
+
+
+
 
 	protected function getOriginalImage(){
+		//もしキャッシュがあったらキャッシュを返す
+		$cache_file_name = md5($this->resource_url);
+		$cache_file_path = __DIR__."/original_cache/".$cache_file_name;
+		if(file_exists($cache_file_path) && is_file($cache_file_path)){
+			return file_get_contents($cache_file_path);
+		}
+
+
+		//ファイルが存在しないので取得し、返す
 		$ch = curl_init();
 		$hh = array('Accept-Language:ja,en-US;q=0.8,en;q=0.6');
 		if(in_array('WEBP', $this->supported_formats, TRUE)){
@@ -210,7 +281,7 @@ class ImageProxy{
 	}
 
 
-	protected function echoHeaders($imagetype){
+	protected function echoHeaders($imagetype, $is_cached = false){
 
 		$headers = array();
 
@@ -219,7 +290,13 @@ class ImageProxy{
 		$headers[] = "X-XSS-Protection: 1; mode=block";
 		$headers[] = "Content-Security-Policy: 'none'";
 		$headers[] = "Access-Control-Allow-Origin: *";
-		$headers[] = "Cache-Control: public, max-age=10";
+		$headers[] = "Cache-Control: public, max-age=31536000";
+
+		if($is_cached){
+			$headers[] = "X-ImageProxy-Cached: 1";
+		}else{
+			$headers[] = "X-ImageProxy-Cached: 0";
+		}
 
 		//send content-type
 		$content_type = image_type_to_mime_type($imagetype);
@@ -239,12 +316,7 @@ class ImageProxy{
 	}
 
 
-	public function getImage(){
-		//
-		//	プロキシした画像を返す
-		//
-
-		$newImage = array();
+	protected function checkStatus(){
 
 		if(!$this->width){
 			throw new Exception("widthが設定されていません");
@@ -262,8 +334,50 @@ class ImageProxy{
 			throw new Exception('qualityが設定されていません');
 		}
 
+		return true;
+	}
+
+
+	protected function getMd5Name($format, $quality, $width, $url){
+		return md5($format.$quality.$width.$url);
+	}
+
+
+
+
+	public function getImage(){
+		//
+		//	プロキシした画像を返す
+		//
+
+		$this->checkStatus();
+
+
+
+		//もしリサイズしたキャッシュがあったら返す
+		//そしてreturn
+		$echoResizedResult = $this->echoResizedImageIfExist();
+		if($echoResizedResult){
+			return true;
+		}
+
+		//以下キャッシュなしの場合
+		$newImage = array();
+		$query_format = $this->format;
+		$query_quality = $this->quality;
+
 		$original_image = $this->getOriginalImage();
-		$temp_image = imagecreatefromstring($original_image);
+
+		if(false === ($temp_image = imagecreatefromstring($original_image))){
+			throw new Exception('画像ファイルが認識できません');
+		}
+
+		if(strlen($original_image) >= 1024*1024){ //1MB以上ならキャッシュしておく
+			$cache_result = $this->cacheNewFile($original_image, md5($this->resource_url), "original_cache", 30);
+			if(!$cache_result){
+				throw new Exception("キャッシュが保存できませんでした");
+			}
+		}
 
 		$image_size = getimagesizefromstring($original_image);
 		
@@ -302,17 +416,21 @@ class ImageProxy{
 			$scaled_image = $temp_image;
 		}
 
+		ob_start();
 		if($this->format === "PNG"){
-			$newImage["data"] = imagepng($scaled_image, null, $this->quality);
+			$newImage["result"] = imagepng($scaled_image, null, $this->quality);
 		}else if($this->format === "JPEG" || $this->format === "JPG"){
-			$newImage["data"] = imagejpeg($scaled_image, null, $this->quality);
+			$newImage["result"] = imagejpeg($scaled_image, null, $this->quality);
 		}else if($this->format === "GIF"){
-			$newImage["data"] = imagegif($scaled_image, null);
+			$newImage["result"] = imagegif($scaled_image, null);
 		}else if($this->format === "WEBP"){
-			$newImage["data"] = imagewebp($scaled_image, null);
+			$newImage["result"] = imagewebp($scaled_image, null);
 		}
 
-		if($newImage["data"] === false){
+		$newImage["data"] = ob_get_contents();
+		ob_end_clean();
+
+		if($newImage["result"] === false){
 			throw new Exception("png画像の生成に失敗しました");
 		}
 
@@ -322,12 +440,15 @@ class ImageProxy{
 		$this->echoHeaders($image_size[2]);
 
 
+
 		echo $newImage["data"];
 
+		//キャッシュにセーブ
+		$this->cacheNewFile($newImage["data"], $this->getMd5Name($query_format, $query_quality, $this->width, $this->resource_url), "resized_cache", 100);
+
+		
 
 
-
-
-
+		return true;
 	}
 }

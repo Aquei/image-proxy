@@ -1,13 +1,19 @@
 <?php
 ob_start();
-include_once("./ImageProxy.php");
+include_once(__dir__."/ImageProxy.php");
 
 $ip = new ImageProxy();
 
 $ip->width = (int) $_GET["width"];
 $ip->format = strtoupper($_GET["format"]);
 $ip->quality = $_GET["q"];
+$url = $_GET["url"];
+
+if(preg_match('/^https?:\/\//', $url)){
+
 $ip->resource_url = $_GET["url"];
+
+}
 
 try{
 	$ip->getImage();
