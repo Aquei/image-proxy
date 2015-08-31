@@ -288,7 +288,7 @@ class ImageProxy{
 		//常につけてたほうが良い
 		$headers[] = "X-Content-Type-Options: nosniff";
 		$headers[] = "X-XSS-Protection: 1; mode=block";
-		$headers[] = "Content-Security-Policy: 'none'";
+		$headers[] = "Content-Security-Policy: default-src 'none';";
 		$headers[] = "Access-Control-Allow-Origin: *";
 		$headers[] = "Cache-Control: public, max-age=31536000";
 
