@@ -416,6 +416,11 @@ class ImageProxy{
 				if(!imagecopyresampled($scaled_image, $temp_image, 0, 0, 0, 0, $this->width, $scaled_image_height, $image_size[0], $image_size[1])){
 					$scaled_image = false;
 				}
+
+				//もしオリジナルがtruecolorでないなら、リサイズ画像もパレットに
+				if(!imageistruecolor($temp_image) && $this->format !== "JPEG"){
+					imagetruecolortopalette($scaled_image, true, imagecolorstotal($temp_image));
+				}
 			}
 
 			if($scaled_image === false){
