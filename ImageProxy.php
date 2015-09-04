@@ -407,7 +407,16 @@ class ImageProxy{
 
 		if($image_size[0] > $this->width){
 			$scaled_image_height = floor($image_size[1] * ($this->width / $image_size[0]));
-			$scaled_image = imagescale($temp_image, $this->width, $scaled_image_height, IMG_BICUBIC);
+
+			//リサイズは横幅2000px以上ならimagescale、未満ならimagecopyresampledを利用する
+			if($image_size[0] >= 2000){
+				$scaled_image = imagescale($temp_image, $this->width, $scaled_image_height, IMG_BICUBIC);
+			}else{
+				$scaled_image = imagecreatetruecolor($this->width, $scaled_image_height);
+				if(!imagecopyresampled($scaled_image, $temp_image, 0, 0, 0, 0, $this->width, $scaled_image_height, $image_size[0], $image_size[1])){
+					$scaled_image = false;
+				}
+			}
 
 			if($scaled_image === false){
 				throw new Exception('画像のスケールに失敗しました');
