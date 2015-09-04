@@ -418,9 +418,14 @@ class ImageProxy{
 				}
 
 				//もしオリジナルがtruecolorでないなら、リサイズ画像もパレットに
-				//256色以下の減色は変な色になることがあるのでtruecolorのままにする
-				$colortotal = imagecolorstotal($temp_image);
-				if(!imageistruecolor($temp_image) && $this->format !== "JPEG" && $colortotal > 256){
+				//4bitの減色は変な色になることがあるので8bitにする
+				if(!imageistruecolor($temp_image) && $this->format !== "JPEG"){
+
+					$colortotal = imagecolorstotal($temp_image);
+					if($colortotal <= 16){
+						$colortotal = 256;
+					}
+
 					imagetruecolortopalette($scaled_image, true, $colortotal);
 				}
 			}
