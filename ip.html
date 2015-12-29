@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html ng-app="ip">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="robots" content="none">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image proxy</title>
+<link rel="stylesheet" crossorigin="anonymous" integrity="sha256-7s5uDGW3AHqw6xtJmNNtr+OBRJUlgkNJEo78P4b0yRw=" href="https://cdn.jsdelivr.net/bootstrap/3.3.6/css/bootstrap.min.css">
+
+<div class="container" ng-controller="form">
+<div class="page-header">
+	<h1>Image Proxy <small>use only aquei</small></h1>
+</div>
+<div class="row">
+<form class="form-horizontal">
+  <div class="form-group" ng-class="url?'':'has-error'">
+	  <label for="url" class="col-sm-2 control-label">URL</label>
+    <div class="col-sm-10">
+      <input ng-model="url" type="url" class="form-control" id="url" placeholder="URL" required>
+    </div>
+  </div>
+  <div class="form-group">
+	  <label for="original_width" class="col-sm-2 control-label">Original Width</label>
+    <div class="col-md-3">
+      <input ng-model="original_width" ng-change="changeOW()" type="number" class="form-control" id="original_width">
+    </div>
+  </div>
+  <div class="form-group" ng-class="original_width<src_width?'has-warning': ''">
+	  <label for="src_width" class="col-sm-2 control-label">Src Width</label>
+    <div class="col-md-3">
+      <input ng-model="src_width" type="number" class="form-control" id="src_width" required>
+    </div>
+  </div>
+  <div class="form-group">
+	  <label for="inputPassword3" class="col-sm-2 control-label">Step</label>
+	  <div class="col-md-3">
+		  <input ng-model="step" type="number" class="form-control" id="inputPassword3">
+	  </div>
+  </div>
+  <div class="form-group" ng-class="original_width<min_width?'has-warning':''" >
+	  <label for="minwidth" class="col-sm-2 control-label">Min Width</label>
+	  <div class="col-md-3">
+		  <input ng-model="min_width" type="number" class="form-control" id="minwidth">
+	  </div>
+  </div>
+  <div class="form-group">
+	  <label for="quality" class="col-sm-2 control-label">Quality</label>
+    <div class="col-md-3">
+      <input ng-model="quality" type="text" class="form-control" id="quality">
+    </div>
+  </div>
+   <div class="form-group">
+	   <label for="format" class="col-sm-2 control-label">Format</label>
+    <div class="col-md-3">
+		<select ng-model="format" class="form-control" id="format">
+			<option>img</option>
+			<option>jpg</option>
+			<option>png</option>
+			<option>gif</option>
+		</select>
+
+    </div>
+</div> 
+  <div class="form-group">
+	  <label for="sizes" class="col-sm-2 control-label">Sizes</label>
+    <div class="col-md-3">
+      <input ng-model="sizes" type="text" class="form-control" id="sizes">
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-offset-2 col-sm-10">
+		<button type="submit" class="btn btn-primary" ng-click="get_img()">Get Img Element</button>
+    </div>
+  </div>
+</form>
+<div ng-show="imgHTML" class="col-md-8 col-md-offset-2">
+	<textarea ng-model="imgHTML" class="form-control" rows="3" id="htmlstring"></textarea>
+	<button id="cpbtn" data-clipboard-target="#htmlstring" type="button" class="btn btn-warning">Copy</button>
+</div>
+</div>
+
+<script crossorigin="anonymous" integrity="sha256-6Yu7R8io0sEFNtrtytY3qQsLnaweva/4m25Zq5z1XU8=" src="https://cdn.jsdelivr.net/angularjs/1.4.7/angular.min.js"></script>
+<script src="https://cdn.jsdelivr.net/clipboard.js/1.5.5/clipboard.min.js" crossorigin="anonymous"></script>
+<script>
+	new Clipboard('#cpbtn');
+</script>
+<script>
+	angular.module("ip", [])
+	.controller("form", ["$scope", "getDefaultSizes", "getImg", function($scope, getDefaultSizes, getImg){
+		$scope.url = "";
+		$scope.step = 300;
+		$scope.format = "img";
+		$scope.original_width = 0;
+		$scope.quality = "mid";
+		$scope.min_width = 300;
+		$scope.src_width = 300;
+		$scope.sizes = getDefaultSizes($scope.original_width);
+
+		$scope.imgHTML = "";
+
+		$scope.get_img = function(){
+			$scope.imgHTML = getImg($scope);
+		}
+
+		$scope.changeOW = function(){
+			$scope.sizes = getDefaultSizes($scope.original_width);
+		}
+	}])
+
+.factory("getDefaultSizes", [function(){
+	return function(original_width){
+		if(original_width >= 1024){
+			return "(max-width: 1024px) 100vw, 1024px";
+		}else{
+			return "(max-width: "+original_width+"px) 100vw, "+original_width+"px";
+		}
+	}
+}])
+
+.constant("endpoint", "//www.srytk.com/a/image-proxy")
+
+.factory("getImg", ["getFileURL", function(getFileURL){
+	return function(data){
+		var src, srcset = [], temp, html;
+
+		src = getFileURL(data, data.src_width);
+
+
+		for(temp = data.original_width; temp > data.min_width; temp -= data.step){
+			srcset.push(getFileURL(data, temp) + ' ' + temp + 'w');
+		}
+
+		//min
+		srcset.push(getFileURL(data, data.min_width) + ' ' + data.min_width + 'w');
+
+		return '<img src="' + src + '" srcset="' + srcset.join(' ,') +'" sizes="' + data.sizes + '">';
+
+	};
+}])
+
+.factory("getFileURL", ["endpoint", "$log", function(endpoint, $log){
+	return function(data, width){
+		if(!width){
+			$log.warn("widthが無効です");
+			return;
+		}
+
+		return endpoint + "/" + data.format + "/" + data.quality + "/" + width + "/image?" + encodeURIComponent(data.url);
+	}}])
+;
+</script>
+</html>
