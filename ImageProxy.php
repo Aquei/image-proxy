@@ -258,6 +258,7 @@ class ImageProxy{
 		curl_setopt_array(
 			$ch,
 			array(
+				CURLOPT_SSL_VERIFYPEER => FALSE, //証明書を検証しない
 				CURLOPT_FAILONERROR => TRUE, //4XXで失敗扱い
 				CURLOPT_FOLLOWLOCATION => TRUE, //Location: を辿る
 				CURLOPT_RETURNTRANSFER => TRUE, //結果を出力しない
