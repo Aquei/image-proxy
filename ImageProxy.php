@@ -222,7 +222,7 @@ class ImageProxy{
 		if(file_exists($resized_path)){
 			$resized = file_get_contents($resized_path);
 			$image_size = getimagesizefromstring($resized);
-			$this->echoHeaders($image_size[2], true);
+			$this->echoHeaders($image_size["mime"], true);
 			echo $resized;
 
 			return true;
@@ -282,7 +282,7 @@ class ImageProxy{
 	}
 
 
-	protected function echoHeaders($imagetype, $is_cached = false){
+	protected function echoHeaders($mime, $is_cached = false){
 
 		$headers = array();
 
@@ -291,6 +291,7 @@ class ImageProxy{
 		$headers[] = "X-XSS-Protection: 1; mode=block";
 		$headers[] = "Content-Security-Policy: default-src 'none';";
 		$headers[] = "Access-Control-Allow-Origin: *";
+		$headers[] = "Timing-Allow-Origin: *";
 		$headers[] = "Cache-Control: public, max-age=31536000";
 
 		if($is_cached){
@@ -300,9 +301,8 @@ class ImageProxy{
 		}
 
 		//send content-type
-		$content_type = image_type_to_mime_type($imagetype);
 		if($content_type){
-			$headers[] = "Content-Type: ".$content_type;
+			$headers[] = "Content-Type: ".$mime;
 		}
 
 		//canonical
@@ -439,14 +439,19 @@ class ImageProxy{
 		}
 
 		ob_start();
+		$mime = "";
 		if($this->format === "PNG"){
 			$newImage["result"] = imagepng($scaled_image, null, $this->quality);
+			$mime = "image/png";
 		}else if($this->format === "JPEG" || $this->format === "JPG"){
 			$newImage["result"] = imagejpeg($scaled_image, null, $this->quality);
+			$mime = "image/jpeg";
 		}else if($this->format === "GIF"){
 			$newImage["result"] = imagegif($scaled_image, null);
+			$mime = "image/gif";
 		}else if($this->format === "WEBP"){
 			$newImage["result"] = imagewebp($scaled_image, null);
+			$mime = "image/webp";
 		}
 
 		$newImage["data"] = ob_get_contents();
@@ -459,7 +464,7 @@ class ImageProxy{
 		$newImage["mime"] = $image_size["mime"];
 
 		//output header
-		$this->echoHeaders($image_size[2]);
+		$this->echoHeaders($mime, false);
 
 
 
