@@ -301,9 +301,7 @@ class ImageProxy{
 		}
 
 		//send content-type
-		if($content_type){
-			$headers[] = "Content-Type: ".$mime;
-		}
+		$headers[] = "Content-Type: ".$mime;
 
 		//canonical
 		$headers[] = 'Link: <'.$this->resource_url.'>; rel="canonical"';
